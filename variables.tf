@@ -7,12 +7,6 @@ variable "name" {
   description = "Name of of the resources and the repository to connect."
 }
 
-variable "tags" {
-  type        = map(list(string))
-  description = "Tags to apply to the resources."
-  default     = null
-}
-
 variable "full_platform_identifier" {
   type        = string
   description = "Full platform identifier for the tenant."

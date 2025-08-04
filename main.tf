@@ -11,7 +11,6 @@ resource "meshstack_project" "dev" {
   }
   spec = {
     display_name = "${var.name} Dev"
-    tags         = var.tags != null ? var.tags : tomap({})
   }
 }
 
@@ -22,7 +21,6 @@ resource "meshstack_project" "prod" {
   }
   spec = {
     display_name = "${var.name} Prod"
-    tags         = var.tags != null ? var.tags : {}
   }
 }
 
