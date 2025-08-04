@@ -11,6 +11,7 @@ resource "meshstack_project" "dev" {
   }
   spec = {
     display_name = "${var.name} Dev"
+    tags         = {}
   }
 }
 
@@ -21,6 +22,7 @@ resource "meshstack_project" "prod" {
   }
   spec = {
     display_name = "${var.name} Prod"
+    tags         = {}
   }
 }
 
