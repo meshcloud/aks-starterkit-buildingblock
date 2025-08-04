@@ -148,8 +148,8 @@ resource "meshstack_building_block_v2" "github_actions_dev" {
       uuid = var.github_actions_connector_definition_version_uuid
     }
     target_ref = {
-      kind       = "meshTenant"
-      identifier = meshstack_tenant_v4.dev.metadata.uuid
+      kind = "meshTenant"
+      uuid = meshstack_tenant_v4.dev.metadata.uuid
     }
     display_name = "GitHub Actions Connector Dev"
     parent_building_blocks = [{
@@ -168,8 +168,8 @@ resource "meshstack_building_block_v2" "github_actions_prod" {
       uuid = var.github_actions_connector_definition_version_uuid
     }
     target_ref = {
-      kind       = "meshTenant"
-      identifier = meshstack_tenant_v4.dev.metadata.uuid
+      kind = "meshTenant"
+      uuid = meshstack_tenant_v4.dev.metadata.uuid
     }
     parent_building_blocks = [{
       buildingblock_uuid = meshstack_building_block_v2.repo.metadata.uuid
