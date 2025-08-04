@@ -8,7 +8,7 @@ variable "name" {
 }
 
 variable "tags" {
-  type        = map(string)
+  type        = map(list(string))
   description = "Tags to apply to the resources."
   default     = null
 }
@@ -43,13 +43,20 @@ variable "github_repo_definition_uuid" {
   description = "UUID of the GitHub repository building block definition."
 }
 
-variable "github_actions_connector_definition_uuid" {
+variable "github_username" {
   type        = string
-  description = "UUID of the GitHub Actions connector building block definition."
+  description = "GitHub username for the repository owner."
+  default     = null
 }
 
-variable "github_actions_connector_definition_version" {
-  type        = number
-  description = "Version of the GitHub Actions connector building block definition."
-  default     = 19
+variable "creator" {
+  type = object({
+    type        = string
+    identifier  = string
+    displayName = string
+    username    = optional(string)
+    email       = optional(string)
+    euid        = optional(string)
+  })
+  description = "Information about the creator of the resources who will be assigned Project Admin role"
 }
