@@ -37,6 +37,12 @@ variable "github_repo_definition_uuid" {
   description = "UUID of the GitHub repository building block definition."
 }
 
+variable "github_repo_input_repo_visibility" {
+  type        = string
+  description = "Visibility of the GitHub repository (e.g., public, private)."
+  default     = "private"
+}
+
 variable "github_username" {
   type        = string
   description = "GitHub username for the repository owner."

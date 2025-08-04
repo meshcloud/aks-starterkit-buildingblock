@@ -109,6 +109,9 @@ resource "meshstack_building_block_v2" "repo" {
       repo_owner = {
         value_string = var.github_username != null ? var.github_username : "null"
       }
+      repo_visibility = {
+        value_string = var.github_repo_input_repo_visibility != null ? var.github_repo_input_repo_visibility : "private"
+      }
       use_template = {
         value_bool = true
       }
