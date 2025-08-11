@@ -43,10 +43,9 @@ variable "github_repo_input_repo_visibility" {
   default     = "private"
 }
 
-variable "github_username" {
+variable "github_org" {
   type        = string
-  description = "GitHub username for the repository owner."
-  default     = null
+  description = "GitHub organization name. Used only for display purposes."
 }
 
 variable "creator" {

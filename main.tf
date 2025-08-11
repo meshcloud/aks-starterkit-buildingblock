@@ -27,7 +27,7 @@ resource "meshstack_project" "prod" {
 }
 
 resource "meshstack_project_user_binding" "creator_dev_admin" {
-  count = var.creator.type == "USER" && var.creator.username != null ? 1 : 0
+  count = var.creator.type == "User" && var.creator.username != null ? 1 : 0
 
   metadata = {
     name = uuid()
@@ -48,7 +48,7 @@ resource "meshstack_project_user_binding" "creator_dev_admin" {
 }
 
 resource "meshstack_project_user_binding" "creator_prod_admin" {
-  count = var.creator.type == "USER" && var.creator.username != null ? 1 : 0
+  count = var.creator.type == "User" && var.creator.username != null ? 1 : 0
 
   metadata = {
     name = uuid()
@@ -98,7 +98,7 @@ resource "meshstack_building_block_v2" "repo" {
       uuid = var.github_repo_definition_version_uuid
     }
 
-    display_name = "GitHub Repo ${var.name}"
+    display_name = "${var.github_org}/${local.identifier}"
     target_ref = {
       kind       = "meshWorkspace"
       identifier = var.workspace_identifier
@@ -109,7 +109,7 @@ resource "meshstack_building_block_v2" "repo" {
         value_string = local.identifier
       }
       repo_owner = {
-        value_string = var.github_username != null ? var.github_username : "null"
+        value_string = "null"
       }
       repo_visibility = {
         value_string = var.github_repo_input_repo_visibility != null ? var.github_repo_input_repo_visibility : "private"
@@ -143,8 +143,25 @@ data "meshstack_building_block_v2" "repo_data" {
   }
 }
 
+# We need to fetch both dev&prod tenant data after creation to get the platform tenant ID
+data "meshstack_tenant_v4" "aks-dev" {
+  depends_on = [time_sleep.wait_45_seconds]
+
+  metadata = {
+    uuid = meshstack_tenant_v4.dev.metadata.uuid
+  }
+}
+
+data "meshstack_tenant_v4" "aks-prod" {
+  depends_on = [time_sleep.wait_45_seconds]
+
+  metadata = {
+    uuid = meshstack_tenant_v4.prod.metadata.uuid
+  }
+}
+
 resource "meshstack_building_block_v2" "github_actions_dev" {
-  depends_on = [meshstack_building_block_v2.repo, time_sleep.wait_45_seconds]
+  depends_on = [meshstack_building_block_v2.repo, meshstack_tenant_v4.dev]
 
   spec = {
     building_block_definition_version_ref = {
@@ -154,11 +171,22 @@ resource "meshstack_building_block_v2" "github_actions_dev" {
       kind = "meshTenant"
       uuid = meshstack_tenant_v4.dev.metadata.uuid
     }
-    display_name = "GitHub Actions Connector Dev"
+    display_name = "GHA Connector Dev"
     parent_building_blocks = [{
       buildingblock_uuid = meshstack_building_block_v2.repo.metadata.uuid
       definition_uuid    = var.github_repo_definition_uuid
     }]
+    inputs = {
+      github_environment_name = {
+        value_string = "development"
+      }
+      additional_environment_variables = {
+        value_code = jsonencode({
+          "DOMAIN_NAME"        = "${local.identifier}-dev"
+          "AKS_NAMESPACE_NAME" = data.meshstack_tenant_v4.aks-dev.spec.platform_tenant_id
+        })
+      }
+    }
   }
 }
 
@@ -166,7 +194,7 @@ resource "meshstack_building_block_v2" "github_actions_prod" {
   depends_on = [meshstack_building_block_v2.repo, meshstack_building_block_v2.github_actions_dev]
 
   spec = {
-    display_name = "GitHub Actions Connector Prod"
+    display_name = "GHA Connector Prod"
     building_block_definition_version_ref = {
       uuid = var.github_actions_connector_definition_version_uuid
     }
@@ -179,11 +207,32 @@ resource "meshstack_building_block_v2" "github_actions_prod" {
       definition_uuid    = var.github_repo_definition_uuid
     }]
     inputs = {
-      branch = {
-        value_string = "release"
+      github_environment_name = {
+        value_string = "production"
+      }
+      additional_environment_variables = {
+        value_code = jsonencode({
+          "DOMAIN_NAME"        = local.identifier
+          "AKS_NAMESPACE_NAME" = data.meshstack_tenant_v4.aks-prod.spec.platform_tenant_id
+        })
       }
     }
   }
+}
+
+output "dev-link" {
+  description = "Link to the dev environment Angular app"
+  value       = "https://${local.identifier}-dev.likvid-k8s.msh.host"
+}
+
+output "prod-link" {
+  description = "Link to the prod environment Angular app"
+  value       = "https://${local.identifier}.likvid-k8s.msh.host"
+}
+
+output "github_repo_url" {
+  description = "URL of the created GitHub repository"
+  value       = data.meshstack_building_block_v2.repo_data.status.outputs.repo_html_url.value_string
 }
 
 output "summary" {
@@ -193,46 +242,60 @@ output "summary" {
 
 ✅ **Your environment is ready!**
 
-This module has successfully created the following resources for your application in workspace `${var.workspace_identifier}`:
+This starter kit has set up the following resources in workspace `${var.workspace_identifier}`:
 
--  **GitHub Repository**: <a href="${data.meshstack_building_block_v2.repo_data.status.outputs.repo_html_url.value_string}" target="_blank">${local.identifier}</a>
--  **Development Project**: <a href="/#/w/${var.workspace_identifier}/p/${meshstack_project.dev.metadata.name}/tenants" target="_blank">${meshstack_project.dev.spec.display_name}</a>
-   - **AKS Namespace**: <a href="/#/w/${var.workspace_identifier}/p/${meshstack_project.dev.metadata.name}/i/aks.meshcloud-azure-dev/overview/azure_kubernetes_service" target="_blank">${meshstack_tenant_v4.dev.metadata.owned_by_workspace}.${meshstack_tenant_v4.dev.metadata.owned_by_project}.aks.meshcloud-azure-dev</a>
-     - **GitHub Actions Connector**
-- **Production Project**: <a href="/#/w/${var.workspace_identifier}/p/${meshstack_project.prod.metadata.name}/tenants" target="_blank">${meshstack_project.prod.spec.display_name}</a>
-  - **AKS Namespace**: <a href="/#/w/${var.workspace_identifier}/p/${meshstack_project.prod.metadata.name}/i/aks.meshcloud-azure-dev/overview/azure_kubernetes_service" target="_blank">${meshstack_tenant_v4.prod.metadata.owned_by_workspace}.${meshstack_tenant_v4.prod.metadata.owned_by_project}.aks.meshcloud-azure-dev</a>
-    - **GitHub Actions Connector**
+- **GitHub Repository**: [${local.identifier}](<${data.meshstack_building_block_v2.repo_data.status.outputs.repo_html_url.value_string}>)
+- **Development Project**: [${meshstack_project.dev.spec.display_name}](/#/w/${var.workspace_identifier}/p/${meshstack_project.dev.metadata.name}/tenants)
+  - **AKS Namespace**: [${data.meshstack_tenant_v4.aks-dev.spec.platform_tenant_id}](/#/w/${var.workspace_identifier}/p/${meshstack_project.dev.metadata.name}/i/aks.eu-de-central/overview/azure_kubernetes_service)
+- **Production Project**: [${meshstack_project.prod.spec.display_name}](/#/w/${var.workspace_identifier}/p/${meshstack_project.prod.metadata.name}/tenants)
+  - **AKS Namespace**: [${data.meshstack_tenant_v4.aks-prod.spec.platform_tenant_id}](/#/w/${var.workspace_identifier}/p/${meshstack_project.prod.metadata.name}/i/aks.eu-de-central/overview/azure_kubernetes_service)
+
+---
+
+## What's Included
+
+Your GitHub repository contains:
+
+- Angular frontend & Node.js backend
+- Dockerfiles for both apps
+- Kubernetes deployment files
+- GitHub Actions CI/CD workflows for AKS
+
+---
+
+## Deployments
+
+Trigger a deployment by:
+- Pushing to the **main** branch (deploys to **dev**)
+- Merging **main** into **release** via PR (deploys to **prod**)
+
+View deployment status: [GitHub Actions](${data.meshstack_building_block_v2.repo_data.status.outputs.repo_html_url.value_string}/actions/workflows/k8s-deploy.yml)
+
+- **Dev**: [${local.identifier}-dev.likvid-k8s.msh.host](https://${local.identifier}-dev.likvid-k8s.msh.host)
+- **Prod**: [${local.identifier}.likvid-k8s.msh.host](https://${local.identifier}.likvid-k8s.msh.host)
+
+---
 
 ## Next Steps
 
-Your GitHub repository has been created and is automatically connected to both your development and production AKS namespaces through GitHub Actions.
-The GitHub Actions pipeline deploys the docker container (Dockerfile in your repository) from the repository to the respective AKS namespaces.
+### 1. Develop
+- Push changes to **main** → deploys to **dev**
+- Merge PR from **main → release** → deploys to **prod**
 
-### Deploy Your Application
-1. **Push your application code** including the required Dockerfile to the created GitHub repository main branch
-2. **Your app will be deployed automatically** to the development AKS namespace via GitHub Actions when a commit is pushed to the main branch
-3. **To deploy to production**, create a Pull Request to merge the main branch into the release branch and merge the Pull Request.
-The GitHub Actions workflow will automatically deploy the application to the production AKS namespace.
-4. **Monitor deployments** in the <a href="${data.meshstack_building_block_v2.repo_data.status.outputs.repo_html_url.value_string}/actions" target="_blank">GitHub Actions tab</a> of your repository
+### 2. Monitor
+- Check workflow status in the [Actions tab](<${data.meshstack_building_block_v2.repo_data.status.outputs.repo_html_url.value_string}/actions>)
 
-### Access Your AKS Namespaces
-You can find instructions how to access your AKS namespaces via the meshstack UI:
+### 3. Access AKS Namespaces
+- [Dev Namespace](/#/w/${var.workspace_identifier}/p/${meshstack_project.dev.metadata.name}/i/aks.eu-de-central/overview/azure_kubernetes_service)
+- [Prod Namespace](/#/w/${var.workspace_identifier}/p/${meshstack_project.prod.metadata.name}/i/aks.eu-de-central/overview/azure_kubernetes_service)
 
-<a href="/#/w/${var.workspace_identifier}/p/${meshstack_project.dev.metadata.name}/i/aks.meshcloud-azure-dev/overview/azure_kubernetes_service" target="_blank">Development AKS Namespace</a> | <a href="/#/w/${var.workspace_identifier}/p/${meshstack_project.prod.metadata.name}/i/aks.meshcloud-azure-dev/overview/azure_kubernetes_service" target="_blank">Production AKS Namespace</a>
+### 4. Manage Access
+- Invite team members via meshStack:
+  - [Dev Access](#/w/${var.workspace_identifier}/p/${meshstack_project.dev.metadata.name}/access-management/role-mapping/overview)
+  - [Prod Access](#/w/${var.workspace_identifier}/p/${meshstack_project.prod.metadata.name}/access-management/role-mapping/overview)
 
-### User Permissions
-- **You have access** to both development and production projects in meshStack and therefore also to the respective AKS namespaces.
-- **Invite team members** to collaborate by adding them to the respective projects
-  - User Management: <a href="/#/w/${var.workspace_identifier}/p/${meshstack_project.dev.metadata.name}/access-management/role-mapping" target="_blank">Development project</a> |
-  <a href="/#/w/${var.workspace_identifier}/p/${meshstack_project.prod.metadata.name}/access-management/role-mapping" target="_blank">Production project</a>
-- **Access to the GitHub repository** must be managed directly in GitHub. ${var.github_username != null ? "**${var.github_username} has admin access** to the created GitHub repository." : ""} Depending on your organization policies, all organization members may
-have access to the repository or you have to add every contributor individually.
+---
 
-Happy coding! 🎉
+🎉 Happy coding!
 EOT
-}
-
-output "github_repo_url" {
-  description = "URL of the created GitHub repository"
-  value       = data.meshstack_building_block_v2.repo_data.status.outputs.repo_html_url.value_string
 }
