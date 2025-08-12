@@ -200,7 +200,7 @@ resource "meshstack_building_block_v2" "github_actions_prod" {
     }
     target_ref = {
       kind = "meshTenant"
-      uuid = meshstack_tenant_v4.dev.metadata.uuid
+      uuid = meshstack_tenant_v4.prod.metadata.uuid
     }
     parent_building_blocks = [{
       buildingblock_uuid = meshstack_building_block_v2.repo.metadata.uuid
