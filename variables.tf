@@ -59,3 +59,9 @@ variable "creator" {
   })
   description = "Information about the creator of the resources who will be assigned Project Admin role"
 }
+
+variable "repo_admin" {
+  type        = string
+  description = "GitHub handle of the user who will be assigned as the repository admin."
+  default     = null
+}

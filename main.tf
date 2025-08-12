@@ -109,7 +109,7 @@ resource "meshstack_building_block_v2" "repo" {
         value_string = local.identifier
       }
       repo_owner = {
-        value_string = "null"
+        value_string = var.repo_admin != null ? var.repo_admin : ""
       }
       repo_visibility = {
         value_string = var.github_repo_input_repo_visibility != null ? var.github_repo_input_repo_visibility : "private"
